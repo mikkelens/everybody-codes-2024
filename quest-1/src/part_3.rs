@@ -1,9 +1,4 @@
 use itertools::Itertools;
-use std::str::FromStr;
-use winnow::combinator::{delimited, opt, repeat, terminated};
-use winnow::token::{take, take_while};
-use winnow::PResult;
-use winnow::Parser;
 
 mod part_2;
 use part_2::map_potion;

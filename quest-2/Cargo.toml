@@ -1,18 +1,18 @@
 [package]
-name = "quest-1"
+name = "quest-2"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "q1p1"
+name = "q2p1"
 path = "src/part_1.rs"
 
 [[bin]]
-name = "q1p2"
+name = "q2p2"
 path = "src/part_2.rs"
 
 [[bin]]
-name = "q1p3"
+name = "q2p3"
 path = "src/part_3.rs"
 
 [dependencies]

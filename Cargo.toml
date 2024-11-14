@@ -2,7 +2,8 @@
 resolver = "2"
 
 members = [
-    "quest-1"
+    "quest-1",
+    "quest-2"
 ]
 
 [workspace.dependencies]
