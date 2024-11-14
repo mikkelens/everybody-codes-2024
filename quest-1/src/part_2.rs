@@ -10,12 +10,12 @@ fn main() {
 fn map_pair(pair: (char, char)) -> u32 {
     match pair {
         ('x', 'x') => 0,
-        ('x', single) | (single, 'x') => map_potions(single),
-        (a, b) => 2 + map_potions(a) + map_potions(b),
+        ('x', single) | (single, 'x') => map_potion(single),
+        (a, b) => 2 + map_potion(a) + map_potion(b),
     }
 }
 
-pub fn map_potions(c: char) -> u32 {
+pub fn map_potion(c: char) -> u32 {
     match c {
         'A' => 0,
         'B' => 1,
