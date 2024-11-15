@@ -57,7 +57,7 @@ fn count_runic_in_inscription(inscription: &str, runes: &HashSet<&str>) -> u32 {
 #[cfg(test)]
 mod q2p1 {
     use crate::{count_runic_in_inscription, parse_input, parse_runes};
-    
+
     #[test]
     fn raw_sample_works() {
         const RAW_SAMPLE: &str = r"WORDS:THE,OWE,MES,ROD,HER
