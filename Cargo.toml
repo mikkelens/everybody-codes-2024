@@ -2,11 +2,15 @@
 resolver = "2"
 
 members = [
+    "utils",
     "quest-1",
-    "quest-2"
+    "quest-2",
 ]
 
 [workspace.dependencies]
 itertools = "0.13.0"
 winnow = "0.6.20"
 anyhow = "1.0.93"
+
+[workspace.dependencies.utils]
+path = "utils"

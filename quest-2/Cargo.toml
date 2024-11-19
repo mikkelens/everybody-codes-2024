@@ -16,6 +16,7 @@ name = "q2p3"
 path = "src/part_3.rs"
 
 [dependencies]
+utils.workspace = true
 itertools.workspace = true
 winnow.workspace = true
 anyhow.workspace = true

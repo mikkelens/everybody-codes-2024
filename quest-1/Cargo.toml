@@ -6,10 +6,12 @@ edition = "2021"
 [[bin]]
 name = "q1p1"
 path = "src/part_1.rs"
+test = false
 
 [[bin]]
 name = "q1p2"
 path = "src/part_2.rs"
+test = false
 
 [[bin]]
 name = "q1p3"
