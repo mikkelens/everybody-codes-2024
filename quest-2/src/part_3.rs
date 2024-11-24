@@ -76,49 +76,93 @@ impl ScaleArmour {
 
         let mut locations: HashSet<Loc> = HashSet::new();
 
-        let rows = all_scales.clone().chunks(self.width);
-        for row in rows.into_iter() {
-            // note on wrapping behaviour: windows do not cycle past end
-            let row = &row.into_iter().collect::<Vec<_>>()[..];
-            // below slice wraps around enough so that windows are effectively wrapping
-            let row_wrapping = &row
-                .iter()
-                .cycle()
-                .take(row.len() + rune.len())
-                .collect::<Vec<_>>()[..];
-            for word in row_wrapping.windows(rune.len()) {
-                let (word_locations, word_chars): (Vec<_>, Vec<char>) =
-                    word.iter().cloned().cloned().unzip();
-                if word_chars.eq(rune) || word_chars.iter().rev().eq(rune) {
-                    locations.extend(word_locations);
-                }
-            }
-        }
+        //        let rows = all_scales.clone().chunks(self.width);
+        //        for row in rows.into_iter() {
+        //            // note on wrapping behaviour: windows do not cycle past end
+        //            let row = &row.into_iter().collect::<Vec<_>>()[..];
+        //            // below slice wraps around enough so that windows are effectively wrapping
+        //            let row_wrapping = &row
+        //                .iter()
+        //                .cycle()
+        //                .take(row.len() + rune.len())
+        //                .collect::<Vec<_>>()[..];
+        //            for word in row_wrapping.windows(rune.len()) {
+        //                let (word_locations, word_chars): (Vec<_>, Vec<char>) =
+        //                    word.iter().cloned().cloned().unzip();
+        //                if word_chars.eq(rune) || word_chars.iter().rev().eq(rune) {
+        //                    locations.extend(word_locations);
+        //                }
+        //            }
+        //        }
 
-        let columns = all_scales.into_group_map_by(|(i, _)| i % self.width);
-        debug_assert_eq!(
-            columns.len(),
-            self.width,
-            "Column count must add up to agreed amount",
-        );
-        debug_assert!(
-            columns.values().map(|column| column.len()).all_equal(),
-            "Length of columns must all be equal"
-        );
-        for (_offset_key, column) in columns.into_iter() {
-            // note on wrapping behaviour: windows do not cycle past end
-            // below slice wraps around enough so that windows are effectively wrapping
-            for word in column.windows(rune.len()) {
-                let (word_locations, word_chars): (Vec<_>, Vec<char>) =
-                    word.iter().cloned().unzip();
-                if word_chars.eq(rune) || word_chars.iter().rev().eq(rune) {
-                    debug_println!("Matched, adding locations: {:?}", word_locations);
-                    locations.extend(word_locations);
-                }
-            }
-        }
+        //        let columns = all_scales
+        //            .clone()
+        //            .into_group_map_by(|(i, _)| i % self.width);
+        //        debug_assert_eq!(
+        //            columns.len(),
+        //            self.width,
+        //            "Column count must add up to agreed amount",
+        //        );
+        //        debug_assert!(
+        //            columns.values().map(|column| column.len()).all_equal(),
+        //            "Length of columns must all be equal"
+        //        );
+        //        for (_offset_key, column) in columns.into_iter() {
+        //            // note on wrapping behaviour: windows do not cycle past end
+        //            // below slice wraps around enough so that windows are effectively wrapping
+        //            for word in column.windows(rune.len()) {
+        //                let (word_locations, word_chars): (Vec<_>, Vec<char>) =
+        //                    word.iter().cloned().unzip();
+        //                if word_chars.eq(rune) || word_chars.iter().rev().eq(rune) {
+        //                    debug_println!("Matched, adding locations: {:?}", word_locations);
+        //                    locations.extend(word_locations);
+        //                }
+        //            }
+        //        }
 
-        locations
+        let row_iter = all_scales
+            .clone()
+            .chunks(self.width)
+            .into_iter()
+            .flat_map(|row| {
+                row.collect::<Vec<(_, _)>>()
+                    .into_iter()
+                    .cycle()
+                    .take(self.width + rune.len())
+                    .collect::<Vec<_>>()[..]
+                    .windows(rune.len())
+                    .filter_map(|word| {
+                        let (locations, chars): (Vec<Loc>, Vec<char>) =
+                            word.iter().cloned().unzip();
+                        if chars.eq(rune) || chars.iter().rev().eq(rune) {
+                            Some(locations)
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten()
+                    .collect::<HashSet<Loc>>()
+            });
+
+        let column_iter = all_scales
+            .into_group_map_by(|(i, _)| i % self.width)
+            .into_iter()
+            .flat_map(|(_, column)| {
+                column
+                    .windows(rune.len())
+                    .filter_map(|word| {
+                        let (locations, chars): (Vec<_>, Vec<char>) = word.iter().cloned().unzip();
+                        if chars.eq(rune) || chars.iter().rev().eq(rune) {
+                            Some(locations)
+                        } else {
+                            None
+                        }
+                    })
+                    .flatten()
+                    .collect::<HashSet<Loc>>()
+            });
+
+        row_iter.merge(column_iter).collect()
     }
 }
 impl Display for ScaleArmour {
