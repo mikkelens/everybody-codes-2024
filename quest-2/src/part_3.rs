@@ -14,8 +14,13 @@ fn main() {
 }
 
 fn parse_input(mut s: &str) -> PResult<u32> {
-    let (runes, armour) =
-        separated_pair(parse_top, (line_ending, line_ending), parse_bottom).parse_next(&mut s)?;
+    let (runes, armour) = separated_pair(
+        parse_top,
+        (line_ending, line_ending)
+            .context(StrContext::Expected(StrContextValue::StringLiteral("\n\n"))),
+        parse_bottom,
+    )
+    .parse_next(&mut s)?;
     debug_println!("Runes: {:?}", runes);
     debug_println!("Armour: {}", armour);
     Ok(armour.all_runes_scale_locations(&runes))
@@ -25,7 +30,11 @@ fn parse_top<'s>(input: &mut &'s str) -> PResult<HashSet<&'s str>> {
     preceded("WORDS:", parse_runes).parse_next(input)
 }
 fn parse_runes<'s>(input: &mut &'s str) -> PResult<HashSet<&'s str>> {
-    separated(0.., alpha1, ',').parse_next(input)
+    separated(0.., parse_letters, ',').parse_next(input)
+}
+/// This is not the same thing as the `alpha1` parser, because this also includes non-ASCII letters
+fn parse_letters<'s>(input: &mut &'s str) -> PResult<&'s str> {
+    take_while(1.., char::is_alphabetic).parse_next(input)
 }
 
 /// # Assumptions
@@ -34,7 +43,7 @@ fn parse_runes<'s>(input: &mut &'s str) -> PResult<HashSet<&'s str>> {
 /// # Failure
 /// It will fail if passed an input string whose Unicode scalar characters do not form this shape.
 fn parse_bottom(input: &mut &str) -> PResult<ScaleArmour> {
-    let (scales, len) = separated(1.., alpha1, line_ending)
+    let (scales, len) = separated(1.., parse_letters, line_ending)
         .verify_map(|lines: Vec<&str>| {
             if let Ok(len) = lines.iter().map(|s| s.chars().count()).all_equal_value() {
                 Some((lines.into_iter().flat_map(|s| s.chars()).collect(), len))
@@ -74,77 +83,27 @@ impl ScaleArmour {
         debug_println!("SEARCHING: {} (len: {})", rune_str, rune.len());
         let all_scales = self.scales.iter().enumerate();
 
-        let mut locations: HashSet<Loc> = HashSet::new();
+        let rows = all_scales.clone().chunks(self.width);
+        let row_symbol_locations = rows.into_iter().flat_map(|row| {
+            row.collect::<Vec<(_, _)>>()
+                .into_iter()
+                .cycle()
+                .take(self.width + rune.len())
+                .collect::<Vec<_>>()[..]
+                .windows(rune.len())
+                .filter_map(|word| {
+                    let (locations, chars): (Vec<Loc>, Vec<char>) = word.iter().cloned().unzip();
+                    if chars.eq(rune) || chars.iter().rev().eq(rune) {
+                        Some(locations)
+                    } else {
+                        None
+                    }
+                })
+                .flatten()
+                .collect::<HashSet<Loc>>()
+        });
 
-        //        let rows = all_scales.clone().chunks(self.width);
-        //        for row in rows.into_iter() {
-        //            // note on wrapping behaviour: windows do not cycle past end
-        //            let row = &row.into_iter().collect::<Vec<_>>()[..];
-        //            // below slice wraps around enough so that windows are effectively wrapping
-        //            let row_wrapping = &row
-        //                .iter()
-        //                .cycle()
-        //                .take(row.len() + rune.len())
-        //                .collect::<Vec<_>>()[..];
-        //            for word in row_wrapping.windows(rune.len()) {
-        //                let (word_locations, word_chars): (Vec<_>, Vec<char>) =
-        //                    word.iter().cloned().cloned().unzip();
-        //                if word_chars.eq(rune) || word_chars.iter().rev().eq(rune) {
-        //                    locations.extend(word_locations);
-        //                }
-        //            }
-        //        }
-
-        //        let columns = all_scales
-        //            .clone()
-        //            .into_group_map_by(|(i, _)| i % self.width);
-        //        debug_assert_eq!(
-        //            columns.len(),
-        //            self.width,
-        //            "Column count must add up to agreed amount",
-        //        );
-        //        debug_assert!(
-        //            columns.values().map(|column| column.len()).all_equal(),
-        //            "Length of columns must all be equal"
-        //        );
-        //        for (_offset_key, column) in columns.into_iter() {
-        //            // note on wrapping behaviour: windows do not cycle past end
-        //            // below slice wraps around enough so that windows are effectively wrapping
-        //            for word in column.windows(rune.len()) {
-        //                let (word_locations, word_chars): (Vec<_>, Vec<char>) =
-        //                    word.iter().cloned().unzip();
-        //                if word_chars.eq(rune) || word_chars.iter().rev().eq(rune) {
-        //                    debug_println!("Matched, adding locations: {:?}", word_locations);
-        //                    locations.extend(word_locations);
-        //                }
-        //            }
-        //        }
-
-        let row_iter = all_scales
-            .clone()
-            .chunks(self.width)
-            .into_iter()
-            .flat_map(|row| {
-                row.collect::<Vec<(_, _)>>()
-                    .into_iter()
-                    .cycle()
-                    .take(self.width + rune.len())
-                    .collect::<Vec<_>>()[..]
-                    .windows(rune.len())
-                    .filter_map(|word| {
-                        let (locations, chars): (Vec<Loc>, Vec<char>) =
-                            word.iter().cloned().unzip();
-                        if chars.eq(rune) || chars.iter().rev().eq(rune) {
-                            Some(locations)
-                        } else {
-                            None
-                        }
-                    })
-                    .flatten()
-                    .collect::<HashSet<Loc>>()
-            });
-
-        let column_iter = all_scales
+        let column_symbol_locations = all_scales
             .into_group_map_by(|(i, _)| i % self.width)
             .into_iter()
             .flat_map(|(_, column)| {
@@ -162,14 +121,16 @@ impl ScaleArmour {
                     .collect::<HashSet<Loc>>()
             });
 
-        row_iter.merge(column_iter).collect()
+        row_symbol_locations
+            .merge(column_symbol_locations)
+            .collect()
     }
 }
 impl Display for ScaleArmour {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(
             f,
-            "{}(w) times {}(h):",
+            "{}x{} (WxH)",
             self.width,
             self.scales.len() / self.width
         )?;
@@ -202,6 +163,23 @@ TRODEOAL"
         assert_eq!(
             parse_input(SAMPLE).expect("should be able to parse the sample"),
             10,
+        )
+    }
+
+    #[test]
+    fn custom_sample_works() {
+        //noinspection SpellCheckingInspection
+        const CUSTOM_SAMPLE: &str = {
+            "WORDS:A,ABC,CD,ÅD
+
+ABCDÅDCB
+BAGHCBAC
+ACGÅGÅCB"
+        };
+        debug_println!("Parsing sample:\n```\n{}\n```\n", CUSTOM_SAMPLE);
+        assert_eq!(
+            parse_input(CUSTOM_SAMPLE).expect("should be able to parse the sample"),
+            3 + 1 + 1 + 1 + 2 + 3 + 3 + 3,
         )
     }
 
